@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import productsRouter from './routers/products.js';
 
 import { env } from './utils/env.js';
 import { notFoundHandler } from './middlewares/notFoundHandler.js';
@@ -13,7 +14,7 @@ export const setupServer = () => {
   app.use(express.json());
   app.use(cors());
 
-  //   app.use(contactsRouter);
+  app.use('/products', productsRouter);
 
   app.use('*', notFoundHandler);
 
