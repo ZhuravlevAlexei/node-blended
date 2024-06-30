@@ -1,43 +1,25 @@
 import bcrypt from 'bcrypt';
-import createHttpError from 'http-errors';
+import jwt from 'jsonwebtoken';
 import { User } from '../db/model/user.js';
-import { Session } from '../db/model/session.js';
-import { randomBytes } from 'crypto';
+import { env } from '../utils/env.js';
 
-export const registerUser = async (payload) => {
-  const { email, name, password } = payload;
-  const user = await User.findOne({ email });
-  if (user) throw createHttpError(409, 'This user is already regisrered');
+export const findUserByEmail = (email) => User.findOne({ email });
 
-  const cryptedPassword = await bcrypt.hash(password, 10);
+export const updateUserWithToken = (userId) => {
+  const token = jwt.sign({ userId }, env('JWT_SECRET'), { expiresIn: '24h' });
 
-  const newUser = await User.create({
-    ...payload,
-    password: cryptedPassword,
-  });
-  return newUser;
+  return User.findByIdAndUpdate(userId, { token }, { new: true });
 };
 
-export const loginUser = async (payload) => {
-  const { email, password } = payload;
-  const user = await User.findOne({ email });
-  if (!user) throw createHttpError(401, 'Email or password is wrong!');
+export const createUser = async (userData) => {
+  const { name, email, password } = userData;
 
-  const compareAnswer = await bcrypt.compare(password, user.password);
-
-  if (!compareAnswer) throw (401, 'Email or password is wrong!');
-
-  await Session.deleteOne({ userId: user._id });
-
-  const accessToken = randomBytes(40).toString('base64');
-  const refreshToken = randomBytes(40).toString('base64');
-
-  const newSession = await Session.create({
-    userId: user._id,
-    accessToken,
-    refreshToken,
-    accessTokenValidUntil: new Date(Date.now() + 1000 * 60 * 15),
-    refreshTokenValidUntil: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const user = await User.create({
+    name: name,
+    email: email,
+    password: hashedPassword,
   });
-  return newSession;
+
+  return updateUserWithToken(user._id);
 };
